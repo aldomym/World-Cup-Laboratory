@@ -14,6 +14,8 @@ class WorldCupEngineTests(unittest.TestCase):
         self.assertEqual(sum(t["isFifaMember"] for t in TEAMS), 211)
         extras = {t["name"] for t in TEAMS if not t["isFifaMember"]}
         self.assertEqual(extras, {"Greenland", "Northern Mariana Islands", "Tuvalu", "Marshall Islands"})
+        self.assertTrue(all(t.get("flagCode") for t in TEAMS))
+        self.assertEqual(len({t["flagCode"] for t in TEAMS}), 215)
 
     def test_full_cycle(self):
         state = initial_state("test", "Test Cup", 2030, "mexico", 424242, "now")
@@ -22,6 +24,8 @@ class WorldCupEngineTests(unittest.TestCase):
         self.assertEqual(len(set(state["finalTeams"])), 48)
         self.assertEqual(len(state["qualifiers"]["intercontinental"]["candidates"]), 6)
         self.assertEqual(len(state["qualifiers"]["intercontinental"]["winners"]), 2)
+        sample_row = state["qualifiers"]["confederations"]["UEFA"]["groups"][0]["standings"][0]
+        self.assertTrue({"played","won","drawn","lost","gf","ga","gd","points"}.issubset(sample_row))
 
         state = perform_draw(state)
         self.assertEqual([len(p["teamIds"]) for p in state["pots"]], [12, 12, 12, 12])
