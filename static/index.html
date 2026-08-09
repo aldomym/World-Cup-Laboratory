@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0f0e" />
+  <title>World Cup Lab — 48 Team Simulator</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark">WCL</span>
+      <div>
+        <strong>WORLD CUP LAB</strong>
+        <small>QUALIFY · DRAW · SIMULATE · ARCHIVE</small>
+      </div>
+    </div>
+    <div class="rank-lock"><span class="pulse"></span> JUL 20 2026 RANKING LOCK</div>
+  </header>
+
+  <div class="shell">
+    <aside class="rail">
+      <div class="rail-top">
+        <button class="new-btn" id="newSimBtn">＋ NEW SIMULATION</button>
+        <p class="eyebrow">SAVED TOURNAMENTS</p>
+      </div>
+      <div id="simList" class="sim-list"></div>
+      <div class="rail-foot">
+        <div><b>215</b><span>available teams</span></div>
+        <div><b>48</b><span>finalists</span></div>
+      </div>
+    </aside>
+
+    <main>
+      <section id="welcome" class="view">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="kicker">BUILD A WORLD CUP FROM ZERO</p>
+            <h1>YOUR WORLD.<br><em>YOUR DRAW.</em></h1>
+            <p class="lede">Choose the host, run six confederation qualifying campaigns, settle the intercontinental playoff, draw 48 teams from ranking-based pots, then simulate every match to the trophy.</p>
+            <button class="primary hero-cta" id="heroNewBtn">CREATE A WORLD CUP →</button>
+          </div>
+          <div class="hero-board">
+            <div class="board-top"><span>FORMAT // 48</span><span>LIVE ENGINE</span></div>
+            <div class="big-number">12×4</div>
+            <p>12 groups · 4 teams each</p>
+            <div class="route">
+              <span>QUALIFIERS</span><i></i><span>DRAW</span><i></i><span>R32</span><i></i><span>FINAL</span>
+            </div>
+            <div class="board-note">All results persist locally in SQLite.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="workspace" class="view hidden">
+        <div class="workspace-head">
+          <div>
+            <p class="kicker" id="simMeta">SIMULATION</p>
+            <h2 id="simTitle">World Cup</h2>
+          </div>
+          <div class="status-stack">
+            <span id="saveState" class="save-state">● SAVED</span>
+            <span id="statusBadge" class="status-badge">SETUP</span>
+          </div>
+        </div>
+
+        <nav class="tabs" id="tabs">
+          <button data-tab="overview" class="active">01 OVERVIEW</button>
+          <button data-tab="qualifiers">02 QUALIFIERS</button>
+          <button data-tab="draw">03 DRAW</button>
+          <button data-tab="finals">04 FINALS</button>
+        </nav>
+
+        <div id="tabContent"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="newDialog">
+    <form method="dialog" id="newForm">
+      <div class="dialog-head">
+        <div>
+          <p class="kicker">NEW SIMULATION</p>
+          <h3>Build the next World Cup.</h3>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <label>TOURNAMENT NAME
+        <input id="nameInput" value="World Cup 2030" maxlength="80" required />
+      </label>
+      <div class="form-grid">
+        <label>EDITION YEAR
+          <input id="yearInput" type="number" value="2030" min="2026" max="2200" required />
+        </label>
+        <label>HOST
+          <input id="hostInput" list="hostOptions" placeholder="Start typing a country…" autocomplete="off" required />
+          <datalist id="hostOptions"></datalist>
+        </label>
+      </div>
+      <div class="dialog-note">The host qualifies automatically and consumes one direct slot from its confederation. The four extra teams are eligible hosts and qualifiers.</div>
+      <menu>
+        <button value="cancel" class="ghost">CANCEL</button>
+        <button id="createBtn" value="default" class="primary">CREATE TOURNAMENT</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
