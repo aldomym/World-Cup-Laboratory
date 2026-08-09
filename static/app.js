@@ -6,8 +6,22 @@ const statusIndex = {setup:0, qualified:1, drawn:2, completed:3};
 function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function t(id){ return teamById[id] || {name:id,code:"???",confederation:"",fifaRank:null,rankingLabel:"NR"}; }
 function rankLabel(id){ return t(id).fifaRank ? `#${t(id).fifaRank}` : "NR"; }
+function flagEmoji(code=""){
+  const base=code.split("-")[0].toUpperCase();
+  if(!/^[A-Z]{2}$/.test(base)) return "⚑";
+  return String.fromCodePoint(...[...base].map(c=>127397+c.charCodeAt()));
+}
+function flagHTML(id, size="md"){
+  const x=t(id), code=x.flagCode||"";
+  const fallback=flagEmoji(code);
+  return `<span class="flag-wrap flag-${size}" title="${esc(x.name)}">
+    <img class="flag-img" src="https://hatscripts.github.io/circle-flags/flags/${esc(code)}.svg" alt="${esc(x.name)} flag"
+      loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span class="flag-fallback">${fallback}</span>
+  </span>`;
+}
 function teamPill(id){
-  const x=t(id); return `<span class="team-pill ${x.fifaRank?'':'nr'}"><span class="rank">${rankLabel(id)}</span>${esc(x.name)}</span>`;
+  const x=t(id); return `<span class="team-pill ${x.fifaRank?'':'nr'}">${flagHTML(id,"sm")}<span class="rank">${rankLabel(id)}</span>${esc(x.name)}</span>`;
 }
 function showToast(msg, error=false){
   const el=$("#toast"); el.textContent=msg; el.className=`toast show ${error?"error":""}`;
@@ -27,7 +41,7 @@ function renderSimList(){
   if(!simulations.length){box.innerHTML=`<p class="rail-empty">No saved tournaments yet. Create one and every qualifier, draw and match result will be kept here.</p>`;return}
   box.innerHTML=simulations.map(s=>`
     <button class="sim-item ${current?.id===s.id?"active":""}" data-id="${s.id}">
-      <b>${esc(s.name)}</b><span><i>${esc(s.hostName)} · ${s.year}</i><i>${s.status}</i></span>
+      <b>${esc(s.name)}</b><span><i>${flagHTML(s.hostId,"xs")}${esc(s.hostName)} · ${s.year}</i><i>${s.status}</i></span>
     </button>`).join("");
   $$(".sim-item",box).forEach(b=>b.onclick=()=>openSimulation(b.dataset.id));
 }
@@ -89,7 +103,7 @@ function overviewHTML(){
   ];
   return `
     <div class="stat-grid">
-      <div class="stat"><span>HOST</span><b>${esc(host.name)}</b><small>${host.confederation} · ${rankLabel(host.id)}</small></div>
+      <div class="stat"><span>HOST</span><b class="with-flag">${flagHTML(host.id,"lg")}${esc(host.name)}</b><small>${host.confederation} · ${rankLabel(host.id)}</small></div>
       <div class="stat"><span>FIELD</span><b>${finalists || "—"} / 48</b><small>${finalists===48?"qualification complete":"awaiting qualifiers"}</small></div>
       <div class="stat"><span>RESULTS SAVED</span><b>${resultCount()}</b><small>qualifiers + finals</small></div>
       <div class="stat"><span>SEEDING SOURCE</span><b>JUL 2026</b><small>official ranking order</small></div>
@@ -131,10 +145,43 @@ function qualifiersHTML(){
       </div>
     </div>
     <div class="section">
+      <div class="section-head">
+        <div><h3>Qualifying group tables</h3><p>Every team, every group, full table.</p></div>
+        <div class="match-toolbar"><select id="tableConfed">${confeds.map(([c])=>`<option value="${c}">${c}</option>`).join("")}</select></div>
+      </div>
+      <div id="qualifyingTables" class="qualifier-table-grid"></div>
+    </div>
+    <div class="section">
       <div class="section-head"><h3>Match explorer</h3><div class="match-toolbar"><select id="matchConfed">${confeds.map(([c])=>`<option value="${c}">${c}</option>`).join("")}<option value="IC">INTERCONTINENTAL</option></select></div></div>
       <div class="panel flush"><div class="table-wrap"><table class="data-table"><thead><tr><th>STAGE</th><th>HOME</th><th class="score">SCORE</th><th>AWAY</th><th>GROUP</th></tr></thead><tbody id="matchRows"></tbody></table></div></div>
     </div>`;
 }
+
+function renderQualifyingTables(confed){
+  const target=$("#qualifyingTables");
+  if(!target||!current.qualifiers)return;
+  const payload=current.qualifiers.confederations[confed];
+  if(!payload){target.innerHTML="";return}
+  target.innerHTML=payload.groups.map(g=>`
+    <div class="qualifier-table-card">
+      <div class="qualifier-table-title">
+        <b>${confed} · GROUP ${g.group}</b>
+        <span>${g.teamIds.length} TEAMS</span>
+      </div>
+      <div class="table-wrap">
+        <table class="qualifier-standing">
+          <thead><tr><th>#</th><th>TEAM</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>PTS</th></tr></thead>
+          <tbody>${g.standings.map((r,i)=>`<tr>
+            <td>${i+1}</td>
+            <td class="team-cell">${flagHTML(r.teamId,"sm")}<span>${esc(t(r.teamId).name)}</span><small>${rankLabel(r.teamId)}</small></td>
+            <td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
+            <td>${r.gf}</td><td>${r.ga}</td><td>${r.gd>0?"+":""}${r.gd}</td><td><b>${r.points}</b></td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>
+    </div>`).join("");
+}
+
 function formatScore(m){
   let s=`${m.homeGoals}–${m.awayGoals}`;
   if(m.penalties)s+=` (${m.penalties.home}–${m.penalties.away} pens)`;
@@ -146,7 +193,7 @@ function renderMatchRows(filter){
   let matches=[];
   if(filter==="IC") matches=current.qualifiers.intercontinental.matches;
   else matches=current.qualifiers.matches.filter(m=>m.stage.startsWith(filter));
-  $("#matchRows").innerHTML=matches.map(m=>`<tr><td>${esc(m.stage)}</td><td>${esc(t(m.homeId).name)}</td><td class="score">${formatScore(m)}</td><td>${esc(t(m.awayId).name)}</td><td>${m.group||"—"}</td></tr>`).join("");
+  $("#matchRows").innerHTML=matches.map(m=>`<tr><td>${esc(m.stage)}</td><td><span class="with-flag">${flagHTML(m.homeId,"xs")}${esc(t(m.homeId).name)}</span></td><td class="score">${formatScore(m)}</td><td><span class="with-flag">${flagHTML(m.awayId,"xs")}${esc(t(m.awayId).name)}</span></td><td>${m.group||"—"}</td></tr>`).join("");
 }
 function drawHTML(){
   if(!current.qualifiers)return `<div class="locked"><b>Draw locked.</b><p>Complete qualifying first. Exactly 48 teams are required before the pots can be formed.</p><button class="primary" data-tabgo="qualifiers">GO TO QUALIFIERS</button></div>`;
@@ -158,12 +205,12 @@ function drawHTML(){
   return `
     <div class="section"><div class="section-head"><h3>Ranking pots</h3><p>12 teams per pot · July 20, 2026 order.</p></div>${potsHTML(current.pots.map(p=>p.teamIds))}</div>
     <div class="section"><div class="section-head"><h3>Groups A–L</h3><p>Max 2 UEFA teams; max 1 from every other confederation.</p></div>
-      <div class="group-grid">${current.groups.map(g=>`<div class="group-card"><h4>GROUP ${g.group}</h4>${g.teamIds.map(id=>`<div class="group-team"><span>${esc(t(id).name)}</span><b>${rankLabel(id)} · ${t(id).confederation}</b></div>`).join("")}</div>`).join("")}</div>
+      <div class="group-grid">${current.groups.map(g=>`<div class="group-card"><h4>GROUP ${g.group}</h4>${g.teamIds.map(id=>`<div class="group-team"><span class="with-flag">${flagHTML(id,"sm")}${esc(t(id).name)}</span><b>${rankLabel(id)} · ${t(id).confederation}</b></div>`).join("")}</div>`).join("")}</div>
     </div>
     ${current.status==="drawn"?`<div class="action-row"><button class="primary" data-action="finals">SIMULATE FINAL TOURNAMENT →</button></div>`:""}`;
 }
 function potsHTML(pots){
-  return `<div class="pot-grid">${pots.map((p,i)=>`<div class="pot"><h4>POT ${i+1}</h4><ol>${p.map(id=>`<li><b>${esc(t(id).name)}</b><span>${rankLabel(id)} · ${t(id).confederation}</span></li>`).join("")}</ol></div>`).join("")}</div>`;
+  return `<div class="pot-grid">${pots.map((p,i)=>`<div class="pot"><h4>POT ${i+1}</h4><ol>${p.map(id=>`<li><b class="with-flag">${flagHTML(id,"sm")}${esc(t(id).name)}</b><span>${rankLabel(id)} · ${t(id).confederation}</span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
 function finalsHTML(){
   if(!current.groups)return `<div class="locked"><b>Final tournament locked.</b><p>Complete the random draw before simulating Groups A–L and the knockout rounds.</p><button class="primary" data-tabgo="draw">GO TO DRAW</button></div>`;
@@ -171,19 +218,20 @@ function finalsHTML(){
     <div class="locked"><b>The stage is set.</b><p>Simulate all 72 group matches, rank the eight best third-placed teams, then play the Round of 32 through the final.</p><button class="primary" data-action="finals">SIMULATE FINAL TOURNAMENT</button></div>`;
   const tr=current.tournament, champ=t(tr.championId);
   return `
-    <div class="champion"><div><span>${current.year} WORLD CHAMPION</span><b>${esc(champ.name)}</b></div><div><span>${rankLabel(champ.id)} · ${champ.confederation}</span></div></div>
+    <div class="champion"><div><span>${current.year} WORLD CHAMPION</span><b class="with-flag">${flagHTML(champ.id,"xl")}${esc(champ.name)}</b></div><div><span>${rankLabel(champ.id)} · ${champ.confederation}</span></div></div>
     <div class="section"><div class="section-head"><h3>Group standings</h3><p>Top two + eight best third-placed teams advance.</p></div>
-      <div class="group-grid">${tr.groupTables.map(g=>`<div class="group-card"><h4>GROUP ${g.group}</h4><table class="standing"><thead><tr><th>TEAM</th><th>P</th><th>GD</th><th>PTS</th></tr></thead><tbody>${g.standings.map(r=>`<tr><td>${esc(t(r.teamId).name)}</td><td>${r.played}</td><td>${r.gd>0?"+":""}${r.gd}</td><td><b>${r.points}</b></td></tr>`).join("")}</tbody></table></div>`).join("")}</div>
+      <div class="group-grid">${tr.groupTables.map(g=>`<div class="group-card"><h4>GROUP ${g.group}</h4><table class="standing"><thead><tr><th>TEAM</th><th>P</th><th>GD</th><th>PTS</th></tr></thead><tbody>${g.standings.map(r=>`<tr><td class="team-cell">${flagHTML(r.teamId,"xs")}<span>${esc(t(r.teamId).name)}</span></td><td>${r.played}</td><td>${r.gd>0?"+":""}${r.gd}</td><td><b>${r.points}</b></td></tr>`).join("")}</tbody></table></div>`).join("")}</div>
     </div>
     <div class="section"><div class="section-head"><h3>Knockout bracket</h3><p>Round of 32 to the trophy.</p></div>
       <div class="knockout">${tr.knockoutRounds.map(r=>`<div class="round"><h4>${r.round.toUpperCase()}</h4><div class="fixture-grid">${r.matches.map(m=>fixtureHTML(m)).join("")}</div></div>`).join("")}
       <div class="round"><h4>THIRD-PLACE PLAYOFF</h4><div class="fixture-grid">${fixtureHTML(tr.thirdPlaceMatch)}</div></div></div>
     </div>`;
 }
-function fixtureHTML(m){return `<div class="fixture"><span class="home">${esc(t(m.homeId).name)}</span><strong>${formatScore(m)}</strong><span>${esc(t(m.awayId).name)}</span></div>`}
+function fixtureHTML(m){return `<div class="fixture"><span class="home with-flag right">${esc(t(m.homeId).name)}${flagHTML(m.homeId,"xs")}</span><strong>${formatScore(m)}</strong><span class="with-flag">${flagHTML(m.awayId,"xs")}${esc(t(m.awayId).name)}</span></div>`}
 function wireDynamic(){
   $$("[data-tabgo]").forEach(b=>b.onclick=()=>{activeTab=b.dataset.tabgo;renderWorkspace()});
   $$("[data-action]").forEach(b=>b.onclick=()=>runAction(b.dataset.action));
+  const tc=$("#tableConfed"); if(tc){tc.onchange=()=>renderQualifyingTables(tc.value);renderQualifyingTables(tc.value)}
   const mc=$("#matchConfed"); if(mc){mc.onchange=()=>renderMatchRows(mc.value);renderMatchRows(mc.value)}
 }
 async function runAction(action){
