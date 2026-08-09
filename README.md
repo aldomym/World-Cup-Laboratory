@@ -15,6 +15,8 @@ A dependency-free full-stack FIFA World Cup simulator.
 - Confederation qualifying campaigns
 - Six-team intercontinental playoff for the last two places
 - Every qualifier result persisted
+- Full qualifying group tables (P/W/D/L/GF/GA/GD/Pts) for every team
+- Team flags throughout qualifiers, draw, standings, fixtures and champion views
 - Four draw pots of 12 based on the **20 July 2026 FIFA men's ranking**
 - Non-FIFA additions are treated as **unranked** and sort after all ranked FIFA members for pot seeding
 - Confederation-aware random group draw
@@ -121,3 +123,7 @@ python -m unittest discover -s tests -v
 ## Ranking sources
 
 The app's July 2026 ordering was checked against FIFA's 20 July 2026 ranking update and the full July 2026 table surfaced by FotMob. FIFA also states that it has 211 member associations.
+
+## Flags
+
+Team flags use the Circle Flags SVG CDN with an emoji fallback if an SVG cannot load.
